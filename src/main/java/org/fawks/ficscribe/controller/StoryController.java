@@ -5,6 +5,8 @@ import org.fawks.ficscribe.service.StoryService;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
 import java.net.URI;
@@ -19,19 +21,24 @@ import java.util.List;
  */
 
 @CrossOrigin
-@RestController
+@Controller
 @RequestMapping("/stories")
 public class StoryController {
     private final StoryService storyService;
+    private final ControllerUtil controllerUtil;
 
     @Autowired
-    public StoryController(StoryService storyService) {
+    public StoryController(StoryService storyService, ControllerUtil controllerUtil) {
         this.storyService = storyService;
+        this.controllerUtil = controllerUtil;
     }
 
     @GetMapping
-    public List<Story> getStories() {
-        return storyService.getStories();
+    public String getStories(Model model) {
+        List<Story> stories = storyService.getStories();
+        model = controllerUtil.getLoginInfo(model);
+        model.addAttribute("stories", stories);
+        return "story-list";
     }
 
     @GetMapping("/{id}")
@@ -45,11 +52,10 @@ public class StoryController {
         return ResponseEntity.created(new URI("/stories/" + addedStory.getId())).body(addedStory);
     }
 
-    @PutMapping("/{id}")
-    public ResponseEntity updateStory(@PathVariable("id") Story storyFromDB, @RequestBody Story story) {
-        BeanUtils.copyProperties(story, storyFromDB, "id");
-        storyService.saveStory(storyFromDB);
-        return ResponseEntity.ok(storyFromDB);
+    @PutMapping
+    public String updateStory(@RequestBody Story story) {
+        storyService.saveStory(story);
+        return "story-list";
     }
 
     @DeleteMapping("/{id}")

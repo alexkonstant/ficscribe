@@ -1,16 +1,21 @@
 package org.fawks.ficscribe.controller;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.fawks.ficscribe.domain.Story;
+import org.fawks.ficscribe.domain.User;
 import org.fawks.ficscribe.service.StoryService;
-import org.springframework.beans.BeanUtils;
+import org.fawks.ficscribe.service.UserService;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
-import java.net.URI;
-import java.net.URISyntaxException;
+import java.io.IOException;
 import java.util.List;
 
 /**
@@ -25,11 +30,14 @@ import java.util.List;
 @RequestMapping("/stories")
 public class StoryController {
     private final StoryService storyService;
+    private final UserService userService;
     private final ControllerUtil controllerUtil;
+    private static final Logger log = LogManager.getLogger(StoryController.class);
 
     @Autowired
-    public StoryController(StoryService storyService, ControllerUtil controllerUtil) {
+    public StoryController(StoryService storyService, UserService userService, ControllerUtil controllerUtil) {
         this.storyService = storyService;
+        this.userService = userService;
         this.controllerUtil = controllerUtil;
     }
 
@@ -47,9 +55,22 @@ public class StoryController {
     }
 
     @PostMapping
-    public ResponseEntity addStory(@RequestBody Story story) throws URISyntaxException {
-        Story addedStory = storyService.saveStory(story);
-        return ResponseEntity.created(new URI("/stories/" + addedStory.getId())).body(addedStory);
+    public String addStory(@RequestBody String url, Authentication auth) throws IOException {
+        Document doc = Jsoup.connect(url + "?view_adult=true").get();
+        Element root = doc.select("body > #outer > #inner > #main > #workskin > div.preface").first();
+        if (root == null) {
+            root = doc.select("body > #outer > #inner > #main > div.work > #workskin > div.preface").first();
+        }
+        User user = userService.getUser(auth.getName());
+        log.info("USER ==> " + user.getName());
+        Story story = new Story();
+        story.setUrl(url);
+        story.setAuthor(root.select("h3.byline").text());
+        story.setName(root.select("h2").text());
+        story.setSummary(root.select("div.summary > blockquote > p").text());
+        story.setUser(user);
+        storyService.saveStory(story);
+        return "story-list";
     }
 
     @PutMapping
@@ -59,8 +80,8 @@ public class StoryController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity deleteStory(@PathVariable("id") Story story) {
+    public String deleteStory(@PathVariable("id") Story story) {
         storyService.delete(story);
-        return ResponseEntity.ok().build();
+        return "story-list";
     }
 }

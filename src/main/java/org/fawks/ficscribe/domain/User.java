@@ -8,11 +8,10 @@ import lombok.NoArgsConstructor;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
-import javax.persistence.Entity;
-import javax.persistence.Id;
-import javax.persistence.Table;
+import javax.persistence.*;
 import java.io.Serializable;
 import java.util.Collection;
+import java.util.Set;
 
 /**
  * @ClassName: User
@@ -44,6 +43,9 @@ public class User implements Serializable, UserDetails {
     private String gender;
 
     private String locale;
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private Set<Story> stories;
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
